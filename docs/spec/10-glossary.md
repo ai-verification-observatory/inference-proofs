@@ -102,6 +102,8 @@ The website's Learn glossary ([`web/learn/glossary.md`](../../web/learn/glossary
 
 <a id="profile"></a>**Profile.** A named machine specification defined in `reference/<release>.yaml`. v0.1 declares `prover-h200`, `prover-h200-hosted`, `prover-h100`, `prover-h100-hosted`, `verifier-cpu`, and the serving profiles `serving-h200x1-hosted` and `serving-h200x4-hosted` (RFC-0006 R6). Every row names its profile, and rows on different profiles are never compared without displaying their profiles. [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md).
 
+<a id="prompt-side"></a>**Prompt side and reply side** (proposed 2026-11-27, awaiting the owner's decision). The two parts of a request a server costs differently: reading the 512 prompt positions and writing the first reply token (prefill), and writing the 511 further reply tokens (decode). Serving measures the prompt side with [request A](#request-a) and takes the reply side as the request less it, each at its own full load. A prover's [further reply](#further-reply) splits into the two by the per-side parts its adapter reports (`<phase>__prompt`, `<phase>__reply`), the rest apportioned by position. Each side has its own multiples, which are diagnostics: they rank nothing and set no check. [RFC-0018](../../rfcs/0018-level-1-ladder.md) CO-10.
+
 <a id="proof"></a>**Proof.** The collection of files (parts) verified together by one `verify` call for one request, released atomically under `/io/proofs/<proof_id>/`. In segment-grid provers, one proof encompasses all segment proofs for a sequence along with any auxiliary grid-check files. [RFC-0005](../../rfcs/0005-adapter-contract.md).
 
 <a id="proof-part"></a>**Proof part.** An individual file inside a proof directory. Controls C5, C6, and C8 mutate only parts that the adapter declares its verifier reads (`system.yaml` `proofs.verify_reads`), and `controls.json` lists every unread part along with the reason. [RFC-0008](../../rfcs/0008-negative-controls.md#parts-the-verifier-reads).
@@ -127,6 +129,8 @@ The website's Learn glossary ([`web/learn/glossary.md`](../../web/learn/glossary
 <a id="repetition"></a>**Repetition.** One of at least three executions of the same system, workload, shape, and profile. Summary statistics aggregate successful repetitions while failed ones are counted in `n_failed`.
 
 <a id="request"></a>**Request.** One prompt paired with the output tokens submitted to the verifier, counted by `requests_count`. Its shape is defined by P prompt tokens, N checked output tokens, and W covered tokens. Every per-request metric is displayed alongside P and N so readers can compare requests directly. [RFC-0017](../../rfcs/0017-requests-tasks-and-tested-states.md).
+
+<a id="request-a"></a>**Request A** (proposed 2026-11-27, awaiting the owner's decision). A rung's diagnostic request: the level's 512-token prompts with a 1-token greedy reply (phase `prefill`), listed by the rung's serving record and served on the ladder only, never in a session. Its baseline at full load is the serving [prompt side](#prompt-side). [RFC-0018](../../rfcs/0018-level-1-ladder.md) CO-10.
 
 <a id="residual"></a>**Residual.** The list on a claim card describing what a dishonest prover can still do while passing verification. [RFC-0002](../../rfcs/0002-claim-card.md).
 

@@ -19,7 +19,9 @@ each argument to its upstream source.
 - `prove` decodes the prompt greedily (`gen_ids`), extracts the witnesses, writes the plan,
   emits the kernels for the plan's shapes into the same store, rebuilds only when that added a
   kernel, proves the grid with `compose-chunks` on that backend, and releases one directory per
-  sequence.
+  sequence. Its `prove` phase is also reported in three parts (RFC-0018 CO-10, proposed): the
+  proving of the prompt's blocks and of the reply's block, summed from compose-chunks' own chunk
+  rows (`block_seconds`), and the rest of the phase.
 - `verify` runs `boundary-grid --verify` on the SIMD backend; its verdict alone is the verdict.
   The claimed output, which the grid does not take, is compared with the ids the proof states
   for the reply block and a difference is recorded as a note, never a verdict (RFC-0018 AD-6).
@@ -125,6 +127,12 @@ SHARED = ("--round even --numbits 9 --z-hi-bits 7 --variants intexp --head-group
 GKR = "--gkr-key-tiles --gkr-dequant --gkr-residual-stream --gkr-freivalds --gkr-attnout"
 LAYER_FLAGS = "--round even --diagonal-block " + GKR
 HEAD_LAYER = 16
+# a segment's tag in the plan and in compose-chunks' chunk rows: `B<block>L<layer>` or
+# `B<block>head` (U/harness/witness/plan.py L22, L166, L210; U/prover/src/chunks.rs L744)
+SER_TAG = re.compile(r"B(\d+)(?:L\d+|head)")
+# RFC-0018 CO-10 (proposed): a part of a phase is named `<phase>__<part>`; the board reads the
+# `__prompt` and `__reply` parts of `prove` as the proving's measured core on each side
+PROVE_PARTS = ("prove__prompt", "prove__reply", "prove__rest")
 KERNEL_FAMILIES = ("zk_chan_eval,zk_key_eval,zk_row_eval,zk_attn_out_eval,zk_dequant_eval,"
                    "zk_freivalds_eval,zk_exp_table_eval,zk_table_eval,zk_residual_stream_eval,"
                    "zk_residual_stream_table_eval")  # fmt: skip
@@ -907,6 +915,44 @@ def reply_kernels(name: str, plan: str, emit_txt: str, pins: str,
     return {"kernels_emit": seconds, "kernels_build": build_seconds}, defect
 
 
+def block_seconds(docs: list[dict], plan: str, reply_block: int) -> tuple[float, float] | str:
+    """RFC-0018 CO-10 (proposed): one reply's proving seconds on the prompt side and on the reply
+    side, from the chunk rows its compose-chunks processes print (`result.chunks[]`, one per
+    segment: `ser_tag` and `chunk_secs`, U/prover/src/chunks.rs L744-L746). A row's chunk_secs is
+    the prove thread's time on that segment, from taking its generated witness to its files written
+    (chunks.rs L641-L651), while the next segment's witness is generated on another thread. The
+    prompt side is the rows of every block before `reply_block`, its head included (the head of the
+    last prompt block emits the reply's first token, boundary.rs L1148-L1156); the reply side is
+    the rows of `reply_block`. Returns why instead when the rows do not name each segment of the
+    plan exactly once or a row's seconds are not a number of seconds."""
+    tagged = (re.search(r"--ser-tag (\S+)", ln) for ln in host(plan).read_text().splitlines()
+              if not ln.startswith("#"))  # fmt: skip
+    want = sorted(m.group(1) for m in tagged if m)
+    rows = [c for d in docs for c in ((d.get("result") or {}).get("chunks") or [])]
+    if sorted(str(r.get("ser_tag")) for r in rows) != want:
+        return f"its chunk rows name {len(rows)} segments, not the plan's {len(want)} each once"
+    prompt, reply = [], []
+    for r in rows:
+        tag, secs = SER_TAG.fullmatch(str(r["ser_tag"])), r.get("chunk_secs")
+        if tag is None or isinstance(secs, bool) or not isinstance(secs, int | float) \
+                or not 0 <= secs < math.inf:  # fmt: skip
+            return f"its chunk row {r['ser_tag']!r} has chunk_secs {secs!r}"
+        (reply if int(tag.group(1)) == reply_block else prompt).append(float(secs))
+    return math.fsum(prompt), math.fsum(reply)
+
+
+def prove_parts(seconds: float, split: tuple[float, float] | str) -> dict[str, float] | str:
+    """The three parts of one reply's `prove` phase (PROVE_PARTS): the prompt's blocks, the
+    reply's block, and the rest of the phase, what no chunk row times (the processes' start and
+    plan read, the first witness of each process, which nothing overlaps, the proving thread's
+    waits for a witness, the copy and the rename). Returns why there are none."""
+    if isinstance(split, str):
+        return split
+    if sum(split) > seconds:
+        return f"its blocks' proving ({sum(split):.1f} s) exceeds its prove phase ({seconds:.1f} s)"
+    return dict(zip(PROVE_PARTS, (*split, seconds - sum(split)), strict=True))
+
+
 def prove(job: dict) -> dict:
     flags = list(job.get("control_flags", []))  # only from control_flags (RFC-0005)
     g = geometry(job["shape"], model_layers())
@@ -921,6 +967,8 @@ def prove(job: dict) -> dict:
     host(out).mkdir(parents=True, exist_ok=True)
     phases: dict[str, float] = {}
     proofs, slices, warnings, defects = [], [], [], []
+    sides: list[dict[str, float]] = []  # each reply's PROVE_PARTS
+    unsplit: list[str] = []
     cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else 16
     for i in range(count):
         if len(json.loads(prompts[i])) != p:
@@ -931,9 +979,14 @@ def prove(job: dict) -> dict:
         # the greedy continuation, decoded one token past the block and shifted (shift_ids.py)
         run([*UV, "-c", PROMPT_PY, ZK_OUT + "/tokens.npz", job["prompts_file"], str(i)],
             cwd=HSRC, env=env)  # fmt: skip
-        run([*UV, "-m", "harness.witness.gen_ids", "--prefix", str(p), "--offset", "0", "--new",
-             str(s + 1), "--spec", SPEC, "--out", f"{wit}/ids_long.npy"],
-            cwd=HSRC, env=env)  # fmt: skip
+        decoded = run([*UV, "-m", "harness.witness.gen_ids", "--prefix", str(p), "--offset", "0",
+                       "--new", str(s + 1), "--spec", SPEC, "--out", f"{wit}/ids_long.npy"],
+                      cwd=HSRC, env=env)  # fmt: skip
+        # gen_ids' progress, in whole seconds from after its model load (gen_ids.py L62-L67,
+        # L83-L84, L101-L102): logged only, never a phase (README.md §Prompt side and reply side)
+        said = [ln.strip() for ln in decoded.stdout.splitlines()]
+        if progress := [ln for ln in said if ln.startswith(("prefilled ", "decoded ", "wrote "))]:
+            log(f"req-{i}: gen_ids: " + "; ".join(progress))
         run([*UV, "-m", "harness.witness.shift_ids", "--ids", f"{wit}/ids_long.npy", "--prefix",
              str(p), "--new", str(s), "--out", f"{wit}/ids.npy"], cwd=HSRC, env=env)  # fmt: skip
         one = {"ids": time.monotonic() - t}  # this reply's own phases, logged below
@@ -955,6 +1008,7 @@ def prove(job: dict) -> dict:
         tmp = f"/io/proofs/.tmp-{proof_id}"
         host(tmp).mkdir()
         n = sum(1 for ln in host(plan).read_text().splitlines() if ln and not ln.startswith("#"))
+        docs = []
         for lo in range(0, n, SLICE):
             hi, tag = min(lo + SLICE, n), f"{out}/req{i}_slice_{lo:04d}.json"
             r = run([CUDA, "compose-chunks", *SHARED.split(), *pins.split(), *flags, "--plan", plan,
@@ -963,19 +1017,32 @@ def prove(job: dict) -> dict:
                          "RAYON_NUM_THREADS": str(min(16, cpus))})  # fmt: skip
             if "kernel fallback:" in r.stderr:  # never a silent host fallback
                 raise SystemExit(f"sash: slice {lo}:{hi} evaluated a lookup on the host")
-            slices.append(json.loads(host(tag).read_text()))
+            docs.append(json.loads(host(tag).read_text()))
+        slices += docs
         shutil.copyfile(host(plan), host(tmp) / "plan.txt")  # the grid the segments form
         last = json.loads((host(tmp) / f"B{nb - 1}L0.fixed.json").read_text())
         claimed = [int(x) for x in last["tok_in"]]
         os.rename(host(tmp), proofs_dir / proof_id)  # atomic release (RFC-0005)
         one["prove"] = time.monotonic() - t
-        log(f"req-{i}: seconds " + ", ".join(f"{k} {v:.1f}" for k, v in one.items()))
+        part = prove_parts(one["prove"], block_seconds(docs, plan, nb - 1))
+        if isinstance(part, str):
+            unsplit.append(f"req-{i}: {part}")
+            part = {}
+        else:
+            sides.append(part)
+        log(f"req-{i}: seconds " + ", ".join(f"{k} {v:.1f}" for k, v in {**one, **part}.items()))
         for name, seconds in one.items():
             phases[name] = phases.get(name, 0.0) + seconds
         parts = sorted(f.name for f in (proofs_dir / proof_id).iterdir())
         proofs.append({"proof_id": proof_id, "request_index": i, "claimed_output": claimed,
                        "parts": parts})  # fmt: skip
         shutil.rmtree(host(wit))
+    if unsplit:  # parts summed over some replies only would misstate the session
+        warnings.append("prove is not reported by side (RFC-0018 CO-10): " + "; ".join(unsplit))
+    else:
+        for part in sides:
+            for name, seconds in part.items():
+                phases[name] = phases.get(name, 0.0) + seconds
     write_json("/io/binding.json", fold_binding(slices))
     kernels = {**store_facts(store()), "replies_built": len(defects), "setup_defects": defects}
     return {**base("prove"), "proofs": proofs, "binding_report": "/io/binding.json",

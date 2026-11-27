@@ -11,7 +11,9 @@ the rate is r_c = timed replies / (span x GPUs), the GPUs being those the run bo
 (`manifest.json` `machine.gpu.bound_indices`, RFC-0018 SE-2). Full load is the lowest c with
 r_c >= (1 - `baseline.plateau`) x max r; the baseline's GPU-seconds per reply is 1 / r there.
 A rung whose outputs are not the plan's (a failed request, a missing batch) is recorded failed
-and skipped. Pure: it reads the two files and returns values (INV-ARCH-5).
+and skipped. A rung's request A (CO-10, proposed 2026-11-27) is served on the same ladder by the
+same rule; its workload is on no rung of the level file, so the caller names it (`workloads`).
+Pure: it reads the two files and returns values (INV-ARCH-5).
 """
 
 import json
@@ -88,8 +90,13 @@ def _record_path(run_dir: Path, name: str) -> str:
     return (run_dir / name).as_posix()
 
 
-def _rung_for(level: LevelLike, workload: str) -> RungLike | None:
-    return next((r for r in level.rungs if workload in r.workloads.values()), None)
+def _rung_for(level: LevelLike, workload: str,
+              workloads: Mapping[str, str] | None = None) -> RungLike | None:  # fmt: skip
+    """The rung that runs `workload`, else the rung `workloads` (workload id to rung id: a
+    rung's request A, CO-10) names for it."""
+    found = next((r for r in level.rungs if workload in r.workloads.values()), None)
+    named = (workloads or {}).get(workload)
+    return found or next((r for r in level.rungs if r.id == named), None)
 
 
 def _plan_problem(outputs: Sequence[_Output], c: int, rule: BaselineRule) -> str | None:
@@ -121,7 +128,8 @@ class _Records:
     outputs: dict[int, list[_Output]]  # by concurrency
 
 
-def _read(run_dir: Path, level: LevelLike) -> _Records | str:  # noqa: PLR0911 (one cause each)
+def _read(run_dir: Path, level: LevelLike,  # noqa: PLR0911 (one cause each)
+          workloads: Mapping[str, str] | None = None) -> _Records | str:  # fmt: skip
     """The ladder run's outputs by concurrency, its rung and bound GPUs, or why there are none."""
     try:
         run = json.loads((run_dir / "run.json").read_text())
@@ -135,7 +143,7 @@ def _read(run_dir: Path, level: LevelLike) -> _Records | str:  # noqa: PLR0911 (
     workload = manifest.get("workload") or {}
     if workload.get("load_point") != "ladder":
         return f"run {run_id} is not a ladder run (load point {workload.get('load_point')!r})"
-    rung = _rung_for(level, str(workload.get("id")))
+    rung = _rung_for(level, str(workload.get("id")), workloads)
     if rung is None:
         return f"workload {workload.get('id')!r} is on no rung of the level"
     # a multi-GPU host records `bound_indices`, a one-GPU host a single `bound_index`
@@ -158,9 +166,11 @@ def _read(run_dir: Path, level: LevelLike) -> _Records | str:  # noqa: PLR0911 (
     return _Records(run_id, rung, len(bound), field, by_c)
 
 
-def full_load(run_dir: Path, level: LevelLike) -> FullLoad | str:
-    """RFC-0018 CO-4 from the run's stored records, or the cause there is no full load."""
-    records = _read(run_dir, level)
+def full_load(run_dir: Path, level: LevelLike,
+              workloads: Mapping[str, str] | None = None) -> FullLoad | str:  # fmt: skip
+    """RFC-0018 CO-4 from the run's stored records, or the cause there is no full load.
+    `workloads` maps a workload on no rung to its rung (a rung's request A, CO-10)."""
+    records = _read(run_dir, level, workloads)
     if isinstance(records, str):
         return records
     run_json = _record_path(run_dir, "run.json")

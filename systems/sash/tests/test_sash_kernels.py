@@ -193,7 +193,8 @@ def test_reply_whose_emission_adds_a_kernel_builds_once(
 
 def test_prove_phases_apart(adapter: ModuleType) -> None:
     out = prove(adapter, commit(adapter), replies=1)
-    assert list(phases(out)) == ["ids", "witness", "kernels_emit", "kernels_build", "prove"]
+    assert list(phases(out)) == ["ids", "witness", "kernels_emit", "kernels_build", "prove",
+                                 "prove__prompt", "prove__reply", "prove__rest"]  # fmt: skip
 
 
 def test_prove_builds_when_no_build_was_installed(adapter: ModuleType) -> None:

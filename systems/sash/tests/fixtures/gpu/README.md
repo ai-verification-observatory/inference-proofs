@@ -9,3 +9,5 @@
 - Upstream text lines are preserved exactly as reported by the adapter, with no manual edits.
 
 Release-eligible runs use the pinned image and are stored under `results/`.
+
+`chunk-rows.json` holds the chunk rows that `compose-chunks` printed on stdout (`result.chunks[]`) for ten Level 1 replies: two sessions of `l1-l31-8b-p512-o512` at upstream `4f41667` on one H200 (hosted, 2026-11-26), five replies each, two slices a reply (plan lines 0 to 63 and 64 to 65). Each row keeps its `ser_tag` and `chunk_secs` only; every other field, and every path, is removed. `test_sash_sides.py` sums them by block as `prove` does.

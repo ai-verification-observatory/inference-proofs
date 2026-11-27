@@ -97,7 +97,8 @@ def test_generate_still_writes_the_models_own_reply(adapter: ModuleType) -> None
     work = adapter.workdir(adapter.host("/io/state/prove"))
     replies = adapter.generate({"control": False}, [PROMPT], 4, work, phases)
     assert replies[0][0] == 81
-    assert [p["name"] for p in phases] == ["float64_check", "generate"]
+    assert [p["name"] for p in phases] == ["float64_check", "generate", "generate__load",
+                                           "generate__prompt", "generate__reply"]  # fmt: skip
 
 
 def test_the_scoring_image_is_the_pinned_image_plus_the_adapter() -> None:

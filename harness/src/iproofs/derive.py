@@ -576,6 +576,23 @@ FORMULAS = {
     "seconds * gpus",
     "D-L1-ONE-TIME-MARK": "CO-9: ceil(19 * D-L1-ONE-TIME / D-L1-FURTHER), the fewest replies "
     "at which the one-time work is at most 5 % of the total",
+    # RFC-0018 CO-10 (proposed 2026-11-27, Q56): the prompt side and the reply side, diagnostics
+    "D-L1-BASELINE-REPLY": "CO-10: D-L1-BASELINE of the rung's request - D-L1-BASELINE of its "
+    "request A (512 + 1), each at its own full load; null when the first is not the larger",
+    "D-L1-PROMPT-SHARE": "CO-10: D-L1-BASELINE of request A / D-L1-BASELINE of the rung's "
+    "request, the weight w of the prompt side in the total multiple",
+    "D-L1-PROMPT-GENERATION": "CO-10: sum over counted sessions of (the generation's reported "
+    "prompt part * gpus + (D-L1-FURTHER-GENERATION's GPU-seconds - both reported parts * gpus) "
+    "* P / (P + R)) / sum of their N",
+    "D-L1-REPLY-GENERATION": "CO-10: as D-L1-PROMPT-GENERATION with the reply part and R / (P + R)",
+    "D-L1-PROMPT-PROVING": "CO-10: sum over counted sessions of (the reported prompt parts of the "
+    "other prove phases * gpus + (D-L1-FURTHER-PROVING's GPU-seconds - every reported part * "
+    "gpus) * P / (P + R)) / sum of their N",
+    "D-L1-REPLY-PROVING": "CO-10: as D-L1-PROMPT-PROVING with the reply parts and R / (P + R)",
+    "D-L1-PROMPT": "CO-10: D-L1-PROMPT-GENERATION + D-L1-PROMPT-PROVING, pooled the same way",
+    "D-L1-REPLY": "CO-10: D-L1-REPLY-GENERATION + D-L1-REPLY-PROVING, pooled the same way",
+    "D-L1-PROMPT-MULTIPLE": "CO-10: a prompt-side cost / D-L1-BASELINE of request A",
+    "D-L1-REPLY-MULTIPLE": "CO-10: a reply-side cost / D-L1-BASELINE-REPLY",
 }
 
 
@@ -1035,6 +1052,59 @@ def phases_within(phases: Mapping[str, float], call_seconds: float,
     if call_seconds <= 0 or not phases:
         return False
     return abs(sum(phases.values()) - call_seconds) <= tolerance * call_seconds
+
+
+# ---------------------------------------------------------------- CO-10: prompt and reply sides
+
+# RFC-0018 CO-10 (proposed 2026-11-27, Q56): an adapter phase named `<phase>__<part>` reports a
+# part of the phase `<phase>` it also reports; CO-9's sum against the prove call counts whole
+# phases only. The parts `__prompt` and `__reply` are a phase's work on each side of the request.
+PART = "__"
+SIDES = ("prompt", "reply")
+
+
+def whole_phases(phases: Mapping[str, float]) -> dict[str, float]:
+    """CO-10: the reported phases that are not a part of another (no `__` in the name)."""
+    return {k: v for k, v in phases.items() if PART not in k}
+
+
+def phase_parts(phases: Mapping[str, float], phase: str) -> dict[str, float]:
+    """CO-10: the parts the adapter reports of `phase` (`<phase>__<part>`), by part name."""
+    head = phase + PART
+    return {k[len(head) :]: v for k, v in phases.items() if k.startswith(head) and k != head}
+
+
+def apportion(total: float, core: tuple[float, float],
+              positions: tuple[int, int]) -> tuple[float, float]:  # fmt: skip
+    """CO-10: `total` GPU-seconds as (prompt side, reply side): each side's measured `core`, and
+    the rest, work done once for both sides, apportioned by the positions proved on each side.
+    A rest below zero by at most the phase tolerance of `total` (rounding of the reported parts)
+    is zero; a larger one is refused, as is a side with no position."""
+    p, r = positions
+    if p < 1 or r < 1 or total < 0 or min(core) < 0:
+        raise IProofsError(ErrorKind.INTERNAL, "CO-10 apportions a cost by positive positions")
+    rest = total - core[0] - core[1]
+    if rest < 0:
+        if -rest > ADAPTER_PHASE_TOLERANCE * total:
+            raise IProofsError(ErrorKind.INTERNAL, f"CO-10: the measured parts ({sum(core):.3f}) "
+                               f"exceed the cost they split ({total:.3f})")  # fmt: skip
+        rest = 0.0
+    return core[0] + rest * p / (p + r), core[1] + rest * r / (p + r)
+
+
+def reply_side_baseline(prompt_side: float, whole: float) -> float:
+    """CO-10: the serving baseline's reply side, the rung's request less its request A, each at
+    its own full load (s_B - s_A); refused when s_B is not larger."""
+    if whole <= prompt_side or prompt_side <= 0:
+        raise IProofsError(ErrorKind.INTERNAL, "CO-10 needs 0 < s_A < s_B")
+    return whole - prompt_side
+
+
+def side_multiples(prompt_cost: float, reply_cost: float, prompt_side: float,
+                   whole: float) -> tuple[float, float]:  # fmt: skip
+    """CO-10: (prompt cost / s_A, reply cost / (s_B - s_A)). With w = s_A / s_B the row's
+    multiple over s_B is w x the first + (1 - w) x the second."""
+    return prompt_cost / prompt_side, reply_cost / reply_side_baseline(prompt_side, whole)
 
 
 def served_reply_tokens_per_gpu_second(tokens: int, gpu_seconds_per_reply: float) -> float:

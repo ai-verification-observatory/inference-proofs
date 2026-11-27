@@ -601,6 +601,79 @@ def _rung_problems(root: Path, level: Level, rung: Rung, registry: SchemaRegistr
         tokenizers.add(_tokenizer_sha(wl))
     if len(tokenizers) > 1:
         problems.append(f"rung {rung.id}: its workloads name different tokenizer files")
+    return problems + _prompt_side_problems(root, level, rung, registry)
+
+
+# ---------------------------------------------------------------- request A (CO-10)
+
+# RFC-0018 CO-10 (proposed 2026-11-27, Q56): a rung's diagnostic request A is the level's prompt
+# with a one-token greedy reply, its workload's phase `prefill`. The level file names no such
+# workload (LV-1): the rung's serving record lists it beside the rung's own.
+PROMPT_SIDE_PHASE = "prefill"
+PROMPT_SIDE_OUTPUT_TOKENS = 1
+
+
+def _yaml(path: Path) -> object:
+    import yaml  # noqa: PLC0415
+
+    return yaml.safe_load(path.read_text()) if path.is_file() else None
+
+
+def prompt_side_workload(root: Path, serving: str, prompt_tokens: int) -> str | None:
+    """CO-10: the id of the rung's request A: the one workload its serving record
+    (`workloads/serving/<serving>.yaml` `workloads`) lists with the level's prompt tokens, a
+    one-token reply and phase `prefill`; None when the record lists none. Read as written (YAML,
+    no schema), so the board and the runner find the same one; `check_level` validates it."""
+    record = _yaml(root / "workloads" / "serving" / f"{serving}.yaml")
+    listed = record.get("workloads") if isinstance(record, dict) else None
+    found = []
+    for wid in listed if isinstance(listed, list) else []:
+        doc = _yaml(root / "workloads" / f"{wid}.yaml")
+        shape = doc.get("shape") if isinstance(doc, dict) else None
+        if (isinstance(doc, dict) and isinstance(shape, dict)
+                and doc.get("phase") == PROMPT_SIDE_PHASE
+                and shape.get("prompt_tokens") == prompt_tokens
+                and shape.get("output_tokens") == PROMPT_SIDE_OUTPUT_TOKENS):  # fmt: skip
+            found.append(str(wid))
+    if len(found) > 1:
+        raise IProofsError(ErrorKind.CONFIG, f"{serving} lists {len(found)} request A workloads "
+                           f"({', '.join(found)}); CO-10 takes one per rung")  # fmt: skip
+    return found[0] if found else None
+
+
+def _prompt_side_problems(root: Path, level: Level, rung: Rung,
+                          registry: SchemaRegistry) -> list[str]:  # fmt: skip
+    """CO-10: request A, where the rung's serving record lists one, is the rung's request with
+    a one-token reply: the level's prompts, decoding and tokens, the rung's tokenizer, and a
+    proving system of the rung beside ref-serve (REF-3)."""
+    try:
+        wid = prompt_side_workload(root, rung.serving, level.request.prompt_tokens)
+    except IProofsError as e:
+        return [f"rung {rung.id}: {e.message}"]
+    if wid is None:
+        return []
+    try:
+        wl = load_workload(wid, root=root, registry=registry)
+    except IProofsError as e:
+        return [f"rung {rung.id}, request A: {e.message}"]
+    where = f"rung {rung.id}, request A {wid}"
+    pairs = [
+        ("prompts.generator", wl.prompts.generator, level.prompts.generator),
+        ("prompts.corpus_digest", wl.prompts.corpus_digest, level.prompts.corpus_digest),
+        ("prompts.count", wl.prompts.count, rung.requests_per_session),
+        ("decoding.rule", wl.decoding.rule, level.request.decoding),
+        ("shape.context_window", wl.shape.context_window,
+         level.request.prompt_tokens + PROMPT_SIDE_OUTPUT_TOKENS),
+    ]  # fmt: skip
+    problems = [f"{where}: {f} {got!r} != {want!r}" for f, got, want in pairs if got != want]
+    if wid in rung.workloads.values():
+        problems.append(f"{where}: a rung's own workload is never its request A")
+    if not set(rung.workloads) & set(wl.systems):
+        problems.append(f"{where}: systems names no proving system of the rung (REF-3)")
+    if rung.workloads:
+        own = load_workload(sorted(rung.workloads.values())[0], root=root, registry=registry)
+        if _tokenizer_sha(wl) != _tokenizer_sha(own):
+            problems.append(f"{where}: its tokenizer file is not the rung's")
     return problems
 
 

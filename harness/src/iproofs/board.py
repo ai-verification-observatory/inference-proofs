@@ -32,23 +32,28 @@ from iproofs.checks import (
 )
 from iproofs.derive import (
     ADAPTER_PHASE_TOLERANCE,
+    PART,
     Input,
     Pooled,
     QuantityTree,
+    apportion,
     derived,
     further_reply_gpu_seconds,
     generation_seconds,
     nonzero,
     one_time_gpu_seconds,
     one_time_mark,
+    phase_parts,
     phases_within,
     pooled_per_reply,
     release_groups,
+    reply_side_baseline,
     reply_tokens_per_gpu_second,
     served_reply_tokens_per_gpu_second,
     session_per_reply,
     statistic,
     steady_per_reply,
+    whole_phases,
 )
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.fidelity import run_slots as fidelity_run_slots
@@ -62,6 +67,7 @@ from iproofs.glyph import (
     load_properties,
     statement_petals,
 )
+from iproofs.level import PROMPT_SIDE_OUTPUT_TOKENS, prompt_side_workload
 from iproofs.model import card_path
 from iproofs.proof_build import record_path
 from iproofs.provenance import file_digest
@@ -90,6 +96,11 @@ WHOLE_SESSION_RELEASES = frozenset({"v1.0"})
 GENERATION_PHASES = {"sash": "ids"}
 GENERATION_MARKS = "generation_marks"
 ADAPTER_PHASES = "adapter_phases"
+# CO-10 (proposed 2026-11-27, Q56): the prove phase whose `__prompt` and `__reply` parts are the
+# measured core of a reply's generation on each side: SASH's `ids`, and FlashProve's `generate`,
+# the integer model's run inside its AD-4 marks (systems/flashprove/entrypoint, `generate`).
+# The parts of every other prove phase are the proving's core (SASH: `prove`, blocks 0 and 1).
+GENERATION_PART_PHASES = GENERATION_PHASES | {"flashprove": "generate"}
 
 
 def cost_rule(release: str, override: str | None = None) -> str:
@@ -447,11 +458,12 @@ def _adapter_split(run: RunView, phase: str) -> tuple[float | None, str | None,
     call = run.get("run", "metrics", "prove_call_seconds", "value")
     if not isinstance(call, int | float):
         return None, "no harness-timed prove call", None
-    within = phases_within(phases, float(call))
-    check: dict[str, object] = {"run_id": run.run_id, "phases_seconds": sum(phases.values()),
+    whole = whole_phases(phases)  # CO-10: a phase's parts (`<phase>__<part>`) are in it already
+    within = phases_within(whole, float(call))
+    check: dict[str, object] = {"run_id": run.run_id, "phases_seconds": sum(whole.values()),
                                 "prove_call_seconds": float(call), "within": within}  # fmt: skip
     if not within:
-        return None, (f"the adapter's prove phases sum to {sum(phases.values()):.1f} s, the "
+        return None, (f"the adapter's prove phases sum to {sum(whole.values()):.1f} s, the "
                       f"prove call took {float(call):.1f} s"), check  # fmt: skip
     return phases[phase], None, check
 
@@ -577,9 +589,13 @@ def _baseline(
     tokens_in = [f"{index}/baseline/gpu_seconds_per_reply",
                  f"levels/{level_id(level)}.yaml#/request/output_tokens"]  # fmt: skip
     serving = str(field_of(rung, "serving"))
+    # CO-10: a run of the rung's request A is never the baseline of the rung's request
+    side = prompt_side_workload(root, serving, int_of(field_of(level, "request"),
+                                                      "prompt_tokens", 0))  # fmt: skip
     mine = [r for r in runs
             if r.get("manifest", "serving_model", "id") == serving
-            and r.get("manifest", "level", "digest") == digest]  # fmt: skip
+            and r.get("manifest", "level", "digest") == digest
+            and (side is None or r.get("manifest", "workload", "id") != side)]  # fmt: skip
     mine.sort(key=lambda r: (started_at(r), r.run_id))
     ref = f"{index}/baseline/gpu_seconds_per_reply"
     cause = "no baseline run stored"
@@ -631,6 +647,98 @@ def _baseline(
         "reply_tokens_per_gpu_second": _served_tokens(q, tokens, tokens_in, note),
     }
     return block, (ref, q), mine
+
+
+# ---------------------------------------------------------------- request A (CO-10)
+
+
+@dataclass(frozen=True, slots=True)
+class SideBaseline:
+    """CO-10 (proposed 2026-11-27): the serving baseline on each side, as formula inputs: s_A,
+    request A's GPU-seconds per reply at its full load, and s_B - s_A."""
+
+    prompt: Input
+    reply: Input
+
+
+def _sides_baseline(
+    root: Path, runs: Sequence[RunView], level: object, rung: object, digest: str, index: str,
+    whole: Input,
+) -> tuple[dict[str, object] | None, SideBaseline | None, list[RunView]]:  # fmt: skip
+    """CO-10: the rung's serving baseline on the prompt side (request A by CO-4's rule, the first
+    run by start time of the rung's serving record under this level with a full load) and on
+    the reply side (s_B - s_A); None while no run of request A is stored (the block is left
+    out, so a board without one is unchanged)."""
+    serving = str(field_of(rung, "serving"))
+    prompt_tokens = int_of(field_of(level, "request"), "prompt_tokens", 0)
+    wid = prompt_side_workload(root, serving, prompt_tokens)
+    mine = [r for r in runs
+            if wid is not None and r.get("manifest", "serving_model", "id") == serving
+            and r.get("manifest", "level", "digest") == digest
+            and r.get("manifest", "workload", "id") == wid]  # fmt: skip
+    if not mine:
+        return None, None, []
+    mine.sort(key=lambda r: (started_at(r), r.run_id))
+    from iproofs.baseline import full_load  # noqa: PLC0415
+
+    cause = "no run of request A has a full load"
+    found = None
+    for r in mine:
+        result = full_load(r.path, level, {str(wid): str(field_of(rung, "id"))})  # type: ignore[arg-type]
+        if isinstance(result, str):
+            cause = result
+            continue
+        found = (r, result)
+        break
+    base = f"{index}/baseline/sides"
+    prompt_ref, reply_ref = (
+        f"{base}/prompt_gpu_seconds_per_reply",
+        f"{base}/reply_gpu_seconds_per_reply",
+    )
+    whole_ref, b = whole[0], (whole[1] or {}).get("value")
+    if found is None:
+        listed = f"workloads/serving/{serving}.yaml#/workloads"
+        q_a = _null(Unit.GPU_S_PER_REQUEST, Scope.PROVE_STEADY, "D-L1-BASELINE", listed,
+                    NullReason.MISSING_INPUT)  # fmt: skip
+        run_block: dict[str, object] = {"run_id": None, "gpus": None, "concurrency": None,
+                                        "gpu_model": None, "ladder": []}  # fmt: skip
+    else:
+        run, load = found
+        q_a = dict(load.gpu_seconds_per_reply)
+        model = run.get("manifest", "machine", "gpu", "model")
+        run_block = {"run_id": run.run_id, "gpus": load.gpus, "concurrency": load.concurrency,
+                     "gpu_model": str(model) if isinstance(model, str) and model else None,
+                     "ladder": [{"concurrency": c, "replies_per_gpu_second": dict(rate)}
+                                for c, rate in load.ladder]}  # fmt: skip
+        cause = ""
+    a = q_a.get("value")
+    inputs = [whole_ref, prompt_ref]
+    reason = NullReason.MISSING_INPUT
+    if not isinstance(a, int | float) or not isinstance(b, int | float) or b <= 0:
+        reply_value, share = None, None
+        cause = cause or "no baseline of the rung's request"
+    elif b <= a:
+        reply_value, share, reason = None, a / b, NullReason.NOT_APPLICABLE
+        cause = (f"the rung's request costs {b:.6g} GPU-s a reply at full load, request A "
+                 f"{a:.6g}: no reply side (s_B <= s_A)")  # fmt: skip
+    else:
+        reply_value, share = reply_side_baseline(float(a), float(b)), a / b
+    note = ("the rung's request less request A, each at its own full load (CO-4): a difference "
+            "of two figures at different concurrencies, not a measured phase")  # fmt: skip
+    q_r = _quantity(reply_value, Unit.GPU_S_PER_REQUEST, Scope.PROVE_STEADY, "D-L1-BASELINE-REPLY",
+                    inputs, reason, note)  # fmt: skip
+    q_w = _quantity(share, Unit.RATIO, Scope.PROVE_STEADY, "D-L1-PROMPT-SHARE", [prompt_ref,
+                    whole_ref], NullReason.MISSING_INPUT)  # fmt: skip
+    block: dict[str, object] = {
+        "workload": wid, "serving": serving,
+        "request": {"prompt_tokens": prompt_tokens, "output_tokens": PROMPT_SIDE_OUTPUT_TOKENS},
+        **run_block,
+        "cause": cause or None,
+        "prompt_gpu_seconds_per_reply": q_a,
+        "reply_gpu_seconds_per_reply": q_r,
+        "prompt_share": q_w,
+    }  # fmt: skip
+    return block, SideBaseline((prompt_ref, q_a), (reply_ref, q_r)), mine
 
 
 # ---------------------------------------------------------------- fidelity
@@ -859,10 +967,12 @@ def _pooled_quantity(further: Sequence["Further | None"], part: str, unit: Unit,
     return out
 
 
-def _over_baseline(name: str, q: QuantityTree, baseline: Input) -> QuantityTree:
+def _over_baseline(name: str, q: QuantityTree, baseline: Input,
+                   formula: str = "D-L1-MULTIPLE") -> QuantityTree:  # fmt: skip
     """CO-9: a pooled cost over the baseline's GPU-seconds per reply (D-L1-MULTIPLE), with the
-    cost's own range and n over the same baseline (the baseline is one run: no range)."""
-    out = _ratio("D-L1-MULTIPLE", Unit.RATIO, Scope.PROVE_SESSION, (name, q), baseline)
+    cost's own range and n over the same baseline (the baseline is one run: no range). CO-10
+    divides a side's cost by that side's baseline (`formula`)."""
+    out = _ratio(formula, Unit.RATIO, Scope.PROVE_SESSION, (name, q), baseline)
     stats, base = q.get("stats"), (baseline[1] or {}).get("value")
     if out["value"] is not None and isinstance(stats, dict) and isinstance(base, int | float):
         out["stats"] = {"n": stats["n"], "n_failed": 0, "mean": out["value"], "stdev": None,
@@ -900,6 +1010,131 @@ def _diagnostic(figures: Sequence[SessionFigures], metric: str, unit: Unit) -> Q
         return _quantity(None, unit, None, "D-STAT", [ref for ref, _ in inputs],
                          NullReason.MISSING_INPUT)  # fmt: skip
     return statistic(inputs, [], __version__)
+
+
+# ---------------------------------------------------------------- CO-10 on a row
+
+
+@dataclass(frozen=True, slots=True)
+class Sides:
+    """CO-10 (proposed 2026-11-27) for one session: its further reply's generation and proving
+    GPU-seconds on the prompt side and on the reply side (each the measured core the adapter
+    reports, plus the rest apportioned by position), over `replies`; a None says the record
+    cannot give it, `generation_cause` and `proving_cause` why. `generation_core` and
+    `proving_core` name where the measured core comes from (None: no core)."""
+
+    replies: int
+    prompt_generation: float | None = None
+    reply_generation: float | None = None
+    prompt_proving: float | None = None
+    reply_proving: float | None = None
+    generation_core: str | None = None
+    proving_core: str | None = None
+    generation_cause: str | None = None
+    proving_cause: str | None = None
+    parts: tuple[str, ...] = ()  # the adapter phases read as per-side parts
+
+    def per_reply(self, name: str) -> float | None:
+        v = getattr(self, name)
+        return None if v is None or self.replies < 1 else float(v) / self.replies
+
+
+def _reported_phases(run: RunView) -> dict[str, float]:
+    found = run.get("run", "adapter_phases", "prove")
+    return {str(k): float(v["value"]) for k, v in found.items()
+            if isinstance(v, dict) and isinstance(v.get("value"), int | float)} \
+        if isinstance(found, dict) else {}  # fmt: skip
+
+
+def _pair(phases: dict[str, float], phase: str) -> tuple[float, float] | str | None:
+    """The `__prompt` and `__reply` parts of `phase`: the pair, None when neither is reported,
+    or why one alone is not taken."""
+    parts = phase_parts(phases, phase)
+    got = [side in parts for side in ("prompt", "reply")]
+    if not any(got):
+        return None
+    if not all(got):
+        return f"the adapter reports one side only of {phase}"
+    return parts["prompt"], parts["reply"]
+
+
+def _parts_problem(run: RunView, phases: dict[str, float]) -> str | None:
+    """CO-10: why a session's reported parts are not taken: its whole prove phases do not sum
+    to the harness-timed prove call within the tolerance (CO-9's condition), or a phase's parts
+    exceed the phase; None when they are taken."""
+    whole = whole_phases(phases)
+    call = run.get("run", "metrics", "prove_call_seconds", "value")
+    if not isinstance(call, int | float):
+        return "no harness-timed prove call"
+    if not phases_within(whole, float(call)):
+        return (f"the adapter's prove phases sum to {sum(whole.values()):.1f} s, the prove call "
+                f"took {float(call):.1f} s")  # fmt: skip
+    limit = 1 + ADAPTER_PHASE_TOLERANCE
+    over = [ph for ph, v in whole.items() if sum(phase_parts(phases, ph).values()) > v * limit]
+    return f"the parts the adapter reports of {', '.join(over)} exceed the phase" if over else None
+
+
+# a side split: (prompt side, reply side, where its measured core comes from, why there is none)
+_Split = tuple[float | None, float | None, str | None, str | None]
+
+
+def _generation_sides(phases: dict[str, float], phase: str | None, generation: float, gpus: int,
+                      positions: tuple[int, int]) -> _Split:  # fmt: skip
+    """CO-10: the generation on each side, from the `__prompt` and `__reply` parts of the
+    system's generation phase, the rest apportioned by position; unsplit (with why) without."""
+    pair = _pair(phases, phase) if phase else None
+    if not isinstance(pair, tuple):
+        unsplit = f"the adapter reports no prompt and reply parts of {phase}: not split"
+        return None, None, None, pair or (unsplit if phase else "no generation phase to split")
+    try:
+        pg, rg = apportion(generation, (pair[0] * gpus, pair[1] * gpus), positions)
+    except IProofsError as e:
+        return None, None, None, e.message
+    return pg, rg, ADAPTER_PHASES, None
+
+
+def _proving_sides(phases: dict[str, float], phase: str | None, proving: float, gpus: int,
+                   positions: tuple[int, int]) -> _Split:  # fmt: skip
+    """CO-10: the proving on each side, from the `__prompt` and `__reply` parts of every whole
+    phase but the generation's, the rest apportioned by position (all of it, without parts)."""
+    core, read = (0.0, 0.0), False
+    for ph in sorted(whole_phases(phases)):
+        pair = None if ph == phase else _pair(phases, ph)
+        if isinstance(pair, str):
+            return None, None, None, pair
+        if pair is not None:
+            core, read = (core[0] + pair[0] * gpus, core[1] + pair[1] * gpus), True
+    try:
+        pp, rp = apportion(proving, core, positions)
+    except IProofsError as e:
+        return None, None, None, e.message
+    return pp, rp, ADAPTER_PHASES if read else None, None
+
+
+def side_figures(s: Session, further: "Further | None", gpus: int | None,
+                 positions: tuple[int, int]) -> Sides:  # fmt: skip
+    """CO-10 for one session of a row: CO-9's generation and proving GPU-seconds, each split
+    into the prompt side and the reply side. A phase's reported `__prompt` and `__reply` parts
+    are taken only when the session's whole prove phases sum to its prove call within the
+    tolerance (CO-9's condition) and no phase's parts exceed it; the rest of each part is
+    apportioned by `positions` (prompt, reply). Generation with no reported core stays unsplit."""
+    n = further.replies if further else 0
+    if further is None or gpus is None or further.gpu_seconds is None:
+        why = "no further reply"
+        return Sides(n, generation_cause=why, proving_cause=why)
+    if further.generation is None:
+        why = f"no generation and proving split (CO-9): {further.cause}"
+        return Sides(n, generation_cause=why, proving_cause=why)
+    phases = _reported_phases(s.run)
+    parts = tuple(sorted(k for k in phases if PART in k))
+    refused = _parts_problem(s.run, phases) if parts else None
+    if refused is not None:
+        return Sides(n, generation_cause=refused, proving_cause=refused, parts=parts)
+    phase = GENERATION_PART_PHASES.get(str(s.run.run.get("system")))
+    pg, rg, g_core, g_why = _generation_sides(phases, phase, further.generation, gpus, positions)
+    pp, rp, p_core, p_why = _proving_sides(phases, phase, further.gpu_seconds - further.generation,
+                                           gpus, positions)  # fmt: skip
+    return Sides(n, pg, rg, pp, rp, g_core, p_core, g_why, p_why, parts)
 
 
 def _by_slot(causes: Sequence[tuple[int | None, str | None]]) -> list[str]:
@@ -1037,6 +1272,103 @@ def _further_fields(row: _Row, index: str, baseline: Input, price: Input, tokens
         "prove_gpu_util_mean": _diagnostic(figures, "prove_gpu_util_mean", Unit.PERCENT),
         "prove_gpu_memory_peak": _diagnostic(figures, "prove_gpu_memory_peak", Unit.MIB),
     }
+
+
+# CO-10's row figures: (field, formula, the Sides part(s) summed per session)
+_SIDE_COSTS = (
+    ("prompt_generation_gpu_seconds", "D-L1-PROMPT-GENERATION", ("prompt_generation",)),
+    ("reply_generation_gpu_seconds", "D-L1-REPLY-GENERATION", ("reply_generation",)),
+    ("prompt_proving_gpu_seconds", "D-L1-PROMPT-PROVING", ("prompt_proving",)),
+    ("reply_proving_gpu_seconds", "D-L1-REPLY-PROVING", ("reply_proving",)),
+    ("prompt_gpu_seconds", "D-L1-PROMPT", ("prompt_generation", "prompt_proving")),
+    ("reply_gpu_seconds", "D-L1-REPLY", ("reply_generation", "reply_proving")),
+)
+_SIDE_MULTIPLES = (  # (field, cost field, side)
+    ("prompt_proving_multiple", "prompt_proving_gpu_seconds", "prompt"),
+    ("reply_proving_multiple", "reply_proving_gpu_seconds", "reply"),
+    ("prompt_multiple", "prompt_gpu_seconds", "prompt"),
+    ("reply_multiple", "reply_gpu_seconds", "reply"),
+)
+
+
+def _side_total(side: Sides, names: Sequence[str]) -> float | None:
+    values = [getattr(side, n) for n in names]
+    return None if any(v is None for v in values) else float(sum(values))
+
+
+def _sides_fields(row: _Row, index: str, base: SideBaseline, level: object) -> dict[str, object]:
+    """CO-10 (proposed 2026-11-27, Q56): the row's further reply on the prompt side and on the
+    reply side, each with its generation and proving part, pooled as CO-9 pools, and each over
+    its own side of the serving baseline. Diagnostics: no position, check or session reads
+    them."""
+    request = field_of(level, "request")
+    positions = (int_of(request, "prompt_tokens", 0), int_of(request, "output_tokens", 0))
+    figures = row.figures
+    sides = [side_figures(f.session, f.further, f.gpus, positions) for f in figures]
+    marks = [f"{f.session.path}/run.json#/marks" for f in figures
+             if f.further is not None and f.further.split == GENERATION_MARKS]  # fmt: skip
+    level_ref = f"levels/{level_id(level)}.yaml#/request"
+    inputs = [*(f"{f.session.path}/run.json#/{k}" for f in figures for k in ("events", "proofs")),
+              *marks, *(f"{f.session.path}/run.json#/adapter_phases/prove" for f in figures),
+              level_ref]  # fmt: skip
+    gen_cores, prov_cores = {s.generation_core for s in sides}, {s.proving_core for s in sides}
+    mixed = len(gen_cores) > 1 or len(prov_cores) > 1
+    phase = GENERATION_PART_PHASES.get(row.system)
+    parts = sorted({p for s in sides for p in s.parts})
+    gen_parts = [p for p in parts if phase and p.startswith(phase + PART)]
+    prov_parts = [p for p in parts if p not in gen_parts]
+    by = (f"apportioned by position ({positions[0]:,} prompt and {positions[1]:,} reply "
+          "positions)")  # fmt: skip
+
+    def how(names: Sequence[str]) -> str:
+        return (f"measured parts from adapter_phases.prove ({', '.join(names)}; source adapter, "
+                f"tier reported), the rest {by}" if names else f"all of it {by}")  # fmt: skip
+
+    notes = {"generation": how(gen_parts), "proving": how(prov_parts),
+             "total": f"generation: {how(gen_parts)}; proving: {how(prov_parts)}"}  # fmt: skip
+    causes = _by_slot([(f.session.slot, "; ".join(c for c in (s.generation_cause, s.proving_cause)
+                                                    if c) or None)
+                       for f, s in zip(figures, sides, strict=True)])  # fmt: skip
+    if mixed:
+        causes.append("the counted sessions take their per-side parts from different sources")
+    row_cause = "; ".join(causes) if causes else None
+    out: dict[str, object] = {
+        "positions": {"prompt": positions[0], "reply": positions[1], "source": level_ref},
+        "generation_core": None if mixed or not sides else next(iter(gen_cores)),
+        "proving_core": None if mixed or not sides else next(iter(prov_cores)),
+        "parts": parts,
+        "cause": row_cause,
+        "sessions": [{"slot": f.session.slot, "run_id": f.session.run_id,
+                      **{k: s.per_reply(k) for k in ("prompt_generation", "reply_generation",
+                                                     "prompt_proving", "reply_proving")},
+                      "cause": "; ".join(c for c in (s.generation_cause, s.proving_cause)
+                                         if c) or None}
+                     for f, s in zip(figures, sides, strict=True)],
+    }  # fmt: skip
+    for name, formula, names in _SIDE_COSTS:
+        values = [_side_total(sd, names) for sd in sides]
+        kind = "total" if len(names) > 1 else names[0].split("_", 1)[1]
+        note = f"pooled over {len(sides)} sessions; {notes[kind]}"
+        if mixed or not sides or any(v is None for v in values):
+            out[name] = _quantity(None, Unit.GPU_S_PER_REQUEST, Scope.PROVE_SESSION, formula,
+                                  inputs, NullReason.NOT_APPLICABLE, row_cause or note)  # fmt: skip
+            continue
+        pairs = [
+            (float(v), sd.replies) for v, sd in zip(values, sides, strict=True) if v is not None
+        ]
+        pooled = pooled_per_reply(pairs)
+        q = _quantity(pooled.value, Unit.GPU_S_PER_REQUEST, Scope.PROVE_SESSION, formula, inputs,
+                      note=note)  # fmt: skip
+        q["stats"] = {"n": pooled.n, "n_failed": 0, "mean": pooled.value, "stdev": None,
+                      "min": pooled.low, "max": pooled.high, "median": pooled.median}  # fmt: skip
+        out[name] = q
+    for name, cost, side in _SIDE_MULTIPLES:
+        denominator = base.prompt if side == "prompt" else base.reply
+        formula = "D-L1-PROMPT-MULTIPLE" if side == "prompt" else "D-L1-REPLY-MULTIPLE"
+        found = out[cost]
+        assert isinstance(found, dict)
+        out[name] = _over_baseline(f"{index}/sides/{cost}", found, denominator, formula)
+    return out
 
 
 def _row_tree(
@@ -1234,6 +1566,13 @@ def build_board(  # noqa: PLR0915 (one statement per block of the board)
         base = f"releases/{release}/board.json#/rungs/{ri}"
         baseline_block, baseline, read = _baseline(root, runs, level, rung, digest, base, price,
                                                    reply_tokens)  # fmt: skip
+        sides: SideBaseline | None = None
+        if rule == FURTHER_REPLY:  # CO-10: only where a run of the rung's request A is stored
+            sides_block, sides, read_a = _sides_baseline(root, runs, level, rung, digest, base,
+                                                         baseline)  # fmt: skip
+            if sides_block is not None:
+                baseline_block["sides"] = sides_block
+            read = [*read, *read_a]
         dates |= {r.run_id[:10] for r in read}
         fidelity_block, fidelity_doc = _fidelity(root, release, rung_id)
         fidelity_doc = _with_steps(root, release, level, rung, fidelity_doc)
@@ -1298,6 +1637,11 @@ def build_board(  # noqa: PLR0915 (one statement per block of the board)
                               price, reply_tokens)
                      for j, (s, p) in enumerate(ordered)],
         })  # fmt: skip
+        if sides is not None:  # CO-10: each row's sides, beside its CO-9 figures
+            for j, (s, _) in enumerate(ordered):
+                tree: dict[str, Any] = rungs_out[-1]["rows"][j]  # type: ignore[index]
+                tree["sides"] = _sides_fields(by_system[s.system], f"{base}/rows/{j}", sides,
+                                              level)  # fmt: skip
         teacher_forced = _teacher_forced(  # FI-16: each row's proved replies, from its sessions
             root, release, rung_id, {r.system: _proved_replies(r.sessions, level, n) for r in rows}
         )

@@ -28,7 +28,9 @@ is https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b
   for it (U/integrations/vllm/integer_model/README.md "Python API" and "A request from the model's
   own reply"), after that package's float64 check on the GPU (its OPERATING.md "Check that float64
   products are exact on your GPU"); the request is then prompt, reply and filler 0 up to T, with
-  r = P - 1 and e = P + R - 1 (U/docs/verifying.md lines 115-128).
+  r = P - 1 and e = P + R - 1 (U/docs/verifying.md lines 115-128). Its phases are the float64
+  check, the generation (with its load, prompt and reply parts, RFC-0018 CO-10, proposed), the
+  key's extraction with the requests laid (`spool`) and cp_prove.
 - `verify`: `cp_verify CONFIG IVK REQUEST TOKEN PROOF -id ID [-next-token] -j N`, as
   U/driver/measure_rate.py line 698 and U/docs/verifying.md line 176; `-next-token` only when the
   request asks only about y (U/verifier/docs/output.md line 314). The request and token files are
@@ -51,6 +53,7 @@ names the upstream checkout (default /src), when the tests run this file in proc
 import fcntl
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -78,21 +81,32 @@ IM_SRC = "integrations/vllm/integer_model"
 # U/integrations/vllm/integer_model/README.md lines 61-67 and 124-135: load the model folder, then
 # per prompt one prefill call and one call per further reply token, each the greedy choice. No end
 # token stops the loop (RFC-0018 ignore_eos). One process, so the GPU and the 238 GB of pinned host
-# memory (OPERATING.md "Full size") are free again before cp_prove starts.
-GENERATE_PY = """import json, sys
+# memory (OPERATING.md "Full size") are free again before cp_prove starts. The wall time of the
+# load, of each prefill call and of each request's decode calls goes to `seconds` (RFC-0018 CO-10,
+# proposed): `extend` returns its token ids on the CPU (model.py L231-L232, L309), so a call's wall
+# time holds its GPU work. Timing them changes no call and no argument.
+GENERATE_PY = """import json, sys, time
 import integer_model
-folder, prompts_file, count, length, out, options = sys.argv[1:7]
+folder, prompts_file, count, length, out, options, seconds = sys.argv[1:8]
+started = time.monotonic()
 model = integer_model.load_from_folder(folder, "cuda", json.loads(options))
+timed = {"load": time.monotonic() - started, "prompt": [], "reply": []}
 prompts = [json.loads(line) for line in open(prompts_file).read().splitlines()][: int(count)]
 with open(out, "x") as f:
     for prompt in prompts:
         sequence = model.new_sequence()
+        started = time.monotonic()
         reply = [int(model.extend(sequence, prompt)[-1])]
+        prefilled = time.monotonic()
         while len(reply) < int(length):
             reply.append(int(model.extend(sequence, [reply[-1]])[0]))
+        timed["prompt"].append(prefilled - started)
+        timed["reply"].append(time.monotonic() - prefilled)
         model.free(sequence)
         f.write(json.dumps({"prompt_token_ids": prompt, "reply_token_ids": reply}) + "\\n")
         f.flush()
+with open(seconds, "x") as f:
+    json.dump(timed, f)
 """
 # RFC-0018 AD-7. Position j of a sequence scores token j + 1 (examples/score_reply.py L126-128), so
 # the prompt but its last token is fed first and then, in one call, the prompt's last token and the
@@ -470,10 +484,10 @@ def generate(job: dict, prompts: list[list[int]], length: int, work: Path,
     started = time.monotonic()
     listed = work / "prompts.jsonl"
     listed.write_text("".join(json.dumps(p) + "\n" for p in prompts))
-    replies = work / "replies.jsonl"
+    replies, timed = work / "replies.jsonl", work / "generate-seconds.json"
     log = work / "generate.log"
     argv = [IM_PYTHON, "-B", "-c", GENERATE_PY, str(model), str(listed), str(len(prompts)),
-            str(length), str(replies), options]  # fmt: skip
+            str(length), str(replies), options, str(timed)]  # fmt: skip
     if run(argv, job, work, log) != 0:
         raise SystemExit(f"flashprove: the integer model exited non-zero, last line "
                          f"{last_line(log)!r}")  # fmt: skip
@@ -483,8 +497,34 @@ def generate(job: dict, prompts: list[list[int]], length: int, work: Path,
     ):
         raise SystemExit(f"flashprove: {replies} is not one reply of {length} per prompt")
     phases.append({"name": "generate", "seconds": time.monotonic() - started})
+    parts = generate_parts(timed, len(prompts), phases[-1]["seconds"])
+    if isinstance(parts, str):
+        WARNINGS.append(f"generate is not reported by side (RFC-0018 CO-10): {parts}")
+    else:
+        phases += parts
     mark("generation.end")
     return [[int(x) for x in r["reply_token_ids"]] for r in rows]
+
+
+def generate_parts(path: Path, count: int, whole: float) -> list[dict] | str:
+    """RFC-0018 CO-10 (proposed): the parts of `generate` that GENERATE_PY timed, as phases:
+    `generate__load` (load_from_folder), `generate__prompt` (each request's prefill call, which
+    also chooses the reply's first token) and `generate__reply` (each request's further calls, one
+    a token), each summed over the requests. Returns why there are none: the file is not one value
+    a request on each side, or the parts exceed the phase they are parts of."""
+    try:
+        doc = json.loads(path.read_text())
+        load, prompt, reply = float(doc["load"]), doc["prompt"], doc["reply"]
+        sides = [math.fsum(float(x) for x in side) for side in (prompt, reply)]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        return f"{path.name} is unreadable ({e})"
+    if len(prompt) != count or len(reply) != count:
+        return f"{path.name} times {len(prompt)} and {len(reply)} requests, not {count}"
+    values = [load, *sides]
+    if min(values) < 0 or math.fsum(values) > whole:
+        return f"its parts ({math.fsum(values):.1f} s) exceed generate ({whole:.1f} s)"
+    return [{"name": f"generate__{n}", "seconds": v}
+            for n, v in zip(("load", "prompt", "reply"), values, strict=True)]
 
 
 def logit_scale(policy: Path) -> int:
@@ -560,6 +600,7 @@ def prove(job: dict) -> dict:  # noqa: PLR0915
     # longer reply: the integer model's own, then the whole of it checked (Level 1)
     replies = generate(job, prompts, length, work, phases) if length > 1 else None
     t = window_of(host(FIT_CONFIG) / "policy.txt") if replies else tokens
+    started = time.monotonic()  # `spool`: the key extracted and the requests laid
     with tarfile.open(host(isk_tar)) as tar:
         # "tar", not "data": the data filter gives directories the default mode, and cp_prove
         # refuses a key directory that is not 0700 as cp_commit made it (refusal cp-isk)
@@ -575,6 +616,7 @@ def prove(job: dict) -> dict:  # noqa: PLR0915
         os.link(spool / "in/.tmp" / rid, spool / "in" / f"{rid}.req")
         os.unlink(spool / "in/.tmp" / rid)
         pending[rid] = i
+    phases.append({"name": "spool", "seconds": time.monotonic() - started})
     proofs_dir = host("/io/proofs")
     proofs_dir.mkdir(parents=True, exist_ok=True)
     proofs: list[dict] = []

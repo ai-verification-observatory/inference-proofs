@@ -33,7 +33,9 @@
 # docs/runbooks/level-1.md) adds `level=L1` (the run is one session of the level; REPETITIONS
 # must be 1), `session=K` (its slot, 1 to 3) and `ladder` (a production-serving ladder run), for
 # example `l1-l31-8b-p512-o512:1:level=L1:session=1:keep-io` or
-# `l1-l31-8b-p512-o512:1:level=L1:ladder`; `perturbed` first commits the level's changed weights
+# `l1-l31-8b-p512-o512:1:level=L1:ladder` (a rung's request A, RFC-0018 CO-10, the same way:
+# `l1-l31-8b-p512-o1:1:level=L1:ladder`; two steps of one job fetch the weights once);
+# `perturbed` first commits the level's changed weights
 # on this host for the Model check (C3, P1), so a full session with its controls is
 # `l1-maverick-p512-o512:1:level=L1:session=1:perturbed:controls`. `setup=PATH` reuses a setup
 # a `setup` job uploaded, PATH = runs/<folder>/dev-results/<release>/SYSTEM/_setups/<setup id>

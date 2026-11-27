@@ -74,6 +74,9 @@
         },
         "usd_per_reply": {
           "$ref": "#/$defs/value"
+        },
+        "sides": {
+          "$ref": "#/$defs/baseline_sides"
         }
       },
       "required": [
@@ -1967,6 +1970,9 @@
         "prove_gpu_memory_peak": {
           "$comment": "CO-9 (Q55, point 4): the prove step's peak GPU memory (run.json metrics prove_gpu_memory_peak, MiB), D-STAT over the counted sessions: a diagnostic under Cost",
           "$ref": "#/$defs/value"
+        },
+        "sides": {
+          "$ref": "#/$defs/row_sides"
         }
       },
       "required": [
@@ -2815,6 +2821,283 @@
         "item",
         "tag",
         "quotes"
+      ],
+      "type": "object"
+    },
+    "baseline_sides": {
+      "$comment": "RFC-0018 CO-10 (proposed 2026-11-27, Q56): the serving baseline on each side of the request. The prompt side is the rung's request A (the level's prompts, a one-token reply) served on the level's ladder and taken by CO-4's rule (D-L1-BASELINE); the reply side is the rung's baseline less it (D-L1-BASELINE-REPLY, null with the cause when it is not larger); prompt_share is their ratio s_A / s_B. Present only on a board built by the cost of a further reply where a run of request A is stored; diagnostics, read by no position or check",
+      "additionalProperties": false,
+      "properties": {
+        "workload": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "serving": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "prompt_tokens": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "output_tokens": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "prompt_tokens",
+            "output_tokens"
+          ],
+          "type": "object"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/runId"
+            }
+          ]
+        },
+        "gpus": {
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "concurrency": {
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "gpu_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ladder": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "concurrency": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "replies_per_gpu_second": {
+                "$ref": "#/$defs/value"
+              }
+            },
+            "required": [
+              "concurrency",
+              "replies_per_gpu_second"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "cause": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prompt_gpu_seconds_per_reply": {
+          "$ref": "#/$defs/value"
+        },
+        "reply_gpu_seconds_per_reply": {
+          "$ref": "#/$defs/value"
+        },
+        "prompt_share": {
+          "$ref": "#/$defs/value"
+        }
+      },
+      "required": [
+        "workload",
+        "serving",
+        "request",
+        "run_id",
+        "gpus",
+        "concurrency",
+        "gpu_model",
+        "ladder",
+        "cause",
+        "prompt_gpu_seconds_per_reply",
+        "reply_gpu_seconds_per_reply",
+        "prompt_share"
+      ],
+      "type": "object"
+    },
+    "row_sides": {
+      "$comment": "RFC-0018 CO-10 (proposed 2026-11-27, Q56): the row's further reply (CO-9) on the prompt side and on the reply side, each with its generation and proving part, pooled over the counted sessions; a part is the measured core the adapter reports (a phase's `__prompt` and `__reply` parts, source adapter) plus the rest apportioned by position (`positions`), and generation with no reported core is null with the cause. The multiples divide a prompt-side cost by the prompt side of the baseline and a reply-side cost by its reply side. Present only where the rung's baseline has `sides`; diagnostics, read by no position or check",
+      "additionalProperties": false,
+      "properties": {
+        "positions": {
+          "additionalProperties": false,
+          "properties": {
+            "prompt": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "reply": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "source": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "prompt",
+            "reply",
+            "source"
+          ],
+          "type": "object"
+        },
+        "generation_core": {
+          "enum": [
+            null,
+            "adapter_phases"
+          ]
+        },
+        "proving_core": {
+          "enum": [
+            null,
+            "adapter_phases"
+          ]
+        },
+        "parts": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{0,31}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cause": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sessions": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "slot": {
+                "minimum": 1,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "run_id": {
+                "$ref": "../quantity/1.schema.json#/$defs/runId"
+              },
+              "prompt_generation": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "reply_generation": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "prompt_proving": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "reply_proving": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "cause": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "slot",
+              "run_id",
+              "prompt_generation",
+              "reply_generation",
+              "prompt_proving",
+              "reply_proving",
+              "cause"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "prompt_generation_gpu_seconds": {
+          "$ref": "#/$defs/value"
+        },
+        "reply_generation_gpu_seconds": {
+          "$ref": "#/$defs/value"
+        },
+        "prompt_proving_gpu_seconds": {
+          "$ref": "#/$defs/value"
+        },
+        "reply_proving_gpu_seconds": {
+          "$ref": "#/$defs/value"
+        },
+        "prompt_gpu_seconds": {
+          "$ref": "#/$defs/value"
+        },
+        "reply_gpu_seconds": {
+          "$ref": "#/$defs/value"
+        },
+        "prompt_proving_multiple": {
+          "$ref": "#/$defs/value"
+        },
+        "reply_proving_multiple": {
+          "$ref": "#/$defs/value"
+        },
+        "prompt_multiple": {
+          "$ref": "#/$defs/value"
+        },
+        "reply_multiple": {
+          "$ref": "#/$defs/value"
+        }
+      },
+      "required": [
+        "positions",
+        "generation_core",
+        "proving_core",
+        "parts",
+        "cause",
+        "sessions",
+        "prompt_generation_gpu_seconds",
+        "reply_generation_gpu_seconds",
+        "prompt_proving_gpu_seconds",
+        "reply_proving_gpu_seconds",
+        "prompt_gpu_seconds",
+        "reply_gpu_seconds",
+        "prompt_proving_multiple",
+        "reply_proving_multiple",
+        "prompt_multiple",
+        "reply_multiple"
       ],
       "type": "object"
     }

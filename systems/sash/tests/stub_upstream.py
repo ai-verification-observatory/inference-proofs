@@ -210,7 +210,14 @@ def compose_chunks(argv: list[str]) -> int:
     off = {n for s in skips for n in UNBINDS[s]}
     edges = [{"n": n, "edge": e, "state": "unbound" if n in off else "bound"}
              for n, e in enumerate(EDGES, 1)]  # fmt: skip
-    print(json.dumps({"provenance": {"unsound_skips": skips, "binding": {"edges": edges}}}))
+    # chunks.rs L744-L746: one row per segment with its tag and the prove thread's seconds, here
+    # 1 µs for a row of block 0 and 2 µs for one of block 1, so the sums stay below the call's own
+    # wall time. IPROOFS_SASH_STUB_ROWS=none prints no rows, =drop leaves the slice's last out.
+    block = lambda t: int(t[1:].split("L")[0].split("h")[0])  # noqa: E731
+    rows = [{"ser_tag": t, "chunk_secs": 1e-6 * (1 + block(t))} for t in tags]
+    rows = {"none": [], "drop": rows[:-1]}.get(os.environ.get("IPROOFS_SASH_STUB_ROWS", ""), rows)
+    print(json.dumps({"provenance": {"unsound_skips": skips, "binding": {"edges": edges}},
+                      "result": {"chunks": rows}}))  # fmt: skip
     return 0
 
 

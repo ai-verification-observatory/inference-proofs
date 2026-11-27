@@ -235,6 +235,9 @@ class LevelRun:
     warmup_batches: int = 0  # and the count of distinct ladder prompts (`baseline.prompts`)
     timed_batches: int = 0
     ladder_prompts: int = 0
+    # RFC-0018 CO-10 (proposed 2026-11-27): the rung's request A, served on the ladder only, its
+    # reply one token (`output_tokens` above is then 1); it is no session of the rung
+    prompt_side: bool = False
 
 
 def level_run(
@@ -247,18 +250,40 @@ def level_run(
 ) -> LevelRun:
     """`iproofs run --level ID --session K`: the level file, the rung on which `system` runs
     `workload`, and slot K. A workload on no rung, or a slot outside 1..slots, is `config`.
-    Without a slot (`--load ladder`, CO-4) the rung is the one any system runs `workload` on."""
+    Without a slot (`--load ladder`, CO-4) the rung is the one any system runs `workload` on.
+    A rung's request A (CO-10, proposed 2026-11-27) is served by a serve-role system without a
+    slot, on the ladder, its reply one token; any other run of it is `config`."""
     from iproofs.level import (  # noqa: PLC0415 (Level 1 only)
+        PROMPT_SIDE_OUTPUT_TOKENS,
         beacon_file,
         level_digest,
         level_file,
         load_beacon,
         load_level,
+        prompt_side_workload,
     )
+    from iproofs.workloads import reference_role  # noqa: PLC0415
 
     level = load_level(root, level_id, registry=registry)
     rung = next((r for r in level.rungs if r.workloads.get(system) == workload
                  or (slot is None and workload in r.workloads.values())), None)  # fmt: skip
+    side = (
+        None
+        if rung is not None
+        else next(
+            (
+                r
+                for r in level.rungs
+                if prompt_side_workload(root, r.serving, level.request.prompt_tokens) == workload
+            ),
+            None,
+        )
+    )
+    if side is not None and (slot is not None or reference_role(root, system) != "serve"):
+        raise IProofsError(ErrorKind.CONFIG, f"{workload} is rung {side.id}'s request A (RFC-0018 "
+                           "CO-10): a serving system serves it on the ladder, with no session; "
+                           "it is never a session, a setup or a control run")  # fmt: skip
+    rung = rung or side
     if rung is None:
         raise IProofsError(ErrorKind.CONFIG, f"{level_id} has no rung on which {system} runs "
                            f"{workload}")  # fmt: skip
@@ -271,10 +296,12 @@ def level_run(
         else None
     )
     b = level.baseline
+    reply = PROMPT_SIDE_OUTPUT_TOKENS if side is not None else level.request.output_tokens
     return LevelRun(level.id, level_digest(level_file(root, level.id)), rung.id, slot,
                     level.sessions.slots, rung.requests_per_session,
-                    level.request.prompt_tokens, level.request.output_tokens, beacon,
-                    tuple(b.ladder), b.warmup_batches, b.timed_batches, b.prompts)  # fmt: skip
+                    level.request.prompt_tokens, reply, beacon,
+                    tuple(b.ladder), b.warmup_batches, b.timed_batches, b.prompts,
+                    prompt_side=side is not None)  # fmt: skip
 
 
 @dataclass(frozen=True, slots=True)
@@ -856,6 +883,9 @@ class Runner:
         if _reference(job) or _serve(job):
             raise IProofsError(ErrorKind.CONFIG, f"{job.spec.system} makes no commitment "
                                "(RFC-0015): it has no setup")  # fmt: skip
+        if self.level is not None and self.level.prompt_side:
+            raise IProofsError(ErrorKind.CONFIG, f"{job.spec.workload} is a rung's request A "
+                               "(RFC-0018 CO-10): it has no setup")  # fmt: skip
         if self.level is not None:
             self._level_shape(job)
         (job.staging / "io").mkdir()
@@ -1294,6 +1324,9 @@ class Runner:
             job.ladder = {"ladder": list(self.level.ladder),
                           "warmup_batches": self.level.warmup_batches,
                           "timed_batches": self.level.timed_batches}  # fmt: skip
+        elif self.level is not None and self.level.prompt_side:  # CO-10: the ladder only
+            raise IProofsError(ErrorKind.CONFIG, f"{spec.workload} is a rung's request A "
+                               "(RFC-0018 CO-10): it is served on the ladder only")  # fmt: skip
         elif self.load == "high":
             job.run_shape = (entry.batch_size or wl.shape.batch_size,
                              max(wl.shape.batches_per_session, 2))  # fmt: skip

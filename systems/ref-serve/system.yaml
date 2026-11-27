@@ -153,6 +153,31 @@ workloads:
   - '1'
   - --max-model-len
   - '1024'
+# RFC-0018 CO-10 (proposed 2026-11-27, Q56): request A of the two rungs a system runs on, the
+# level's prompts with a one-token reply, served on the same ladder. --max-model-len is prompt
+# plus output tokens (SRV-3 as written, 513); keeping 1,024 so A and the rung's request share
+# one engine configuration is the alternative the owner decides between. The engine's batched
+# token limit stays its default, min(8,192, max_num_seqs x max_model_len) = 8,192 either way.
+- id: l1-maverick-p512-o1
+  load_point: ladder
+  gpus: 4
+  precision_used: FP8
+  precision_substitution: null
+  engine_args:
+  - --tensor-parallel-size
+  - '4'
+  - --max-model-len
+  - '513'
+- id: l1-l31-8b-p512-o1
+  load_point: ladder
+  gpus: 1
+  precision_used: BF16
+  precision_substitution: null
+  engine_args:
+  - --tensor-parallel-size
+  - '1'
+  - --max-model-len
+  - '513'
 - id: l1-gpt2-p512-o512
   load_point: ladder
   gpus: 1

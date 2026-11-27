@@ -61,6 +61,9 @@ hf-job.sh run sash l1-l31-8b-p512-o512:1:level=L1:session=1:keep-io      # one s
 hf-job.sh run flashprove l1-maverick-p512-o512:1:level=L1:session=1
 hf-job.sh run ref-serve l1-l31-8b-p512-o512:1:level=L1:ladder           # serving-h200x1-hosted
 hf-job.sh run ref-serve l1-maverick-p512-o512:1:level=L1:ladder         # serving-h200x4-hosted
+# RFC-0018 CO-10 (proposed): each rung's request A, then the rung's request again on the same host
+hf-job.sh run ref-serve l1-l31-8b-p512-o1:1:level=L1:ladder l1-l31-8b-p512-o512:1:level=L1:ladder    # serving-h200x1-hosted
+hf-job.sh run ref-serve l1-maverick-p512-o1:1:level=L1:ladder l1-maverick-p512-o512:1:level=L1:ladder  # serving-h200x4-hosted
 hf-job.sh fidelity llama-3.1-8b                                         # ref-fidelity image
 hf-job.sh fidelity llama-4-maverick   # fidelity-h200x8-hosted, IPROOFS_FIDELITY_SLOTS=16
 ```

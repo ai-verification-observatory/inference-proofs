@@ -69,14 +69,16 @@ def test_prove_generates_then_proves_the_whole_reply(adapter: ModuleType) -> Non
     out = prove(adapter, committed)
     replies = [greedy(r, R) for r in rows[:4]]
     assert [p["claimed_output"] for p in out["proofs"]] == replies
-    assert [p["name"] for p in out["phases"]] == ["float64_check", "generate", "cp_prove"]
+    assert [p["name"] for p in out["phases"]] == [
+        "float64_check", "generate", "generate__load", "generate__prompt", "generate__reply",
+        "spool", "cp_prove"]  # fmt: skip
     check, generate, cp_prove = commands(adapter)[1:]
     assert check["argv"][1:] == ["-B", "-m", "pytest", "-p", "no:cacheprovider", "-rs",
                                  "tests/test_arithmetic_edges.py"]  # fmt: skip
     assert check["cwd"].endswith("/src/integrations/vllm/integer_model")
     assert generate["argv"][1:3] == ["-B", "-c"]
     assert generate["argv"][6:8] == ["4", str(R)]  # four prompts, replies of R tokens
-    assert sorted(json.loads(generate["argv"][-1])["sha256"]) == [
+    assert sorted(json.loads(generate["argv"][-2])["sha256"]) == [
         "KL.bin", "fold.txt", "integer_model.json", "policy.txt", "wsums.txt"]  # fmt: skip
     assert cp_prove["argv"][0].endswith("/cp_prove")
     spec = json.loads(adapter.host("/io/state/prove/integer-model/integer_model.json").read_text())
@@ -88,6 +90,33 @@ def test_prove_generates_then_proves_the_whole_reply(adapter: ModuleType) -> Non
         for b in (p.read_bytes() for p in laid)
     )
     assert words == sorted([*r, *g, P - 1, P + R - 1] for r, g in zip(rows, replies, strict=False))
+
+
+def test_prove_reports_the_generation_by_side(adapter: ModuleType) -> None:
+    """RFC-0018 CO-10 (proposed): the integer model's load, its prefill calls and its decode calls
+    timed apart, as parts of `generate` that it holds; the whole phases are the four CO-9 sums."""
+    _, committed = level1(adapter)
+    phases = {p["name"]: p["seconds"] for p in prove(adapter, committed)["phases"]}
+    timed = json.loads(adapter.host("/io/state/prove/generate-seconds.json").read_text())
+    assert (len(timed["prompt"]), len(timed["reply"])) == (4, 4)  # one value a request
+    assert phases["generate__prompt"] == pytest.approx(sum(timed["prompt"]))
+    assert phases["generate__reply"] == pytest.approx(sum(timed["reply"]))
+    assert phases["generate__load"] == pytest.approx(timed["load"])
+    parts = phases["generate__load"] + phases["generate__prompt"] + phases["generate__reply"]
+    assert 0 < parts <= phases["generate"]
+
+
+def test_generate_parts_hand_case(adapter: ModuleType, tmp_path: Path) -> None:
+    """Load 30.0 s; two requests, prefill 1.5 and 2.5 s (4.0), decode 10.0 and 12.0 s (22.0)."""
+    f = tmp_path / "seconds.json"
+    f.write_text(json.dumps({"load": 30.0, "prompt": [1.5, 2.5], "reply": [10.0, 12.0]}))
+    assert adapter.generate_parts(f, 2, 60.0) == [
+        {"name": "generate__load", "seconds": 30.0}, {"name": "generate__prompt", "seconds": 4.0},
+        {"name": "generate__reply", "seconds": 22.0}]  # fmt: skip
+    assert "exceed generate (55.0 s)" in adapter.generate_parts(f, 2, 55.0)
+    assert "times 2 and 2 requests, not 3" in adapter.generate_parts(f, 3, 60.0)
+    f.write_text("{")
+    assert "unreadable" in adapter.generate_parts(f, 2, 60.0)
 
 
 def test_float64_check_with_a_skip_stops_prove(
