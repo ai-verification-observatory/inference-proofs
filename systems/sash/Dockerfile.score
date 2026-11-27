@@ -7,7 +7,7 @@
 #   docker build --build-arg IPROOFS_ADAPTER_COMMIT=$(git rev-parse HEAD) \
 #     --build-arg IPROOFS_ADAPTER_DIRTY=$(test -z "$(git status --porcelain)" && echo false || echo true) \
 #     -f systems/sash/Dockerfile.score systems
-FROM ghcr.io/ai-verification-observatory/sash@sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5
+FROM ghcr.io/ai-verification-observatory/sash@sha256:6aed18aa324f621b15928ffd5a00d633938a0a2a380de1af1d93da8e426b7bf7
 COPY sash/entrypoint sash/weight_change.py /opt/sash/
 ARG IPROOFS_ADAPTER_COMMIT=unknown
 ARG IPROOFS_ADAPTER_DIRTY=true

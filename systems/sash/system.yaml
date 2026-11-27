@@ -1,6 +1,9 @@
 # SASH zk-inference-prover (RFC-0005). Values and their upstream sources: systems/sash/README.md.
-# RFC-0014 B7: built by the images workflow (run 43160774801) from the dev/sash-pr36 branch at
-# c3a508bfb392d34374209d2a9f964921d842f642 (adapter_dirty false), pinned at PR #36 (README.md).
+# RFC-0014 B7: upstream's source, toolchain and built programs are those of the image v1.0's
+# sessions ran (14defac4..., images workflow run 43160774801, PR #36, README.md); the adapter files
+# over them are this repository's at b6547ec360ad1848e74fabfd3f9e844b9ff83407 (adapter_dirty false),
+# layered by Dockerfile.score at that commit (images workflow run 45982236795). A setup run and
+# the sessions that load it name this image (README.md §Kernels).
 schema: "system/1"
 name: "sash"
 kind: "prover"
@@ -11,7 +14,7 @@ upstream:
   commit: "4f41667297430a598165c4a8604258fe37d952ae"
 image:
   repository: "ghcr.io/ai-verification-observatory/sash"
-  digest: "sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5"
+  digest: "sha256:6aed18aa324f621b15928ffd5a00d633938a0a2a380de1af1d93da8e426b7bf7"
 # l1-l31-8b-p512-o512 (RFC-0018 Level 1): 512 + 512, five requests a session, one grid of two
 # blocks per request; README.md §Level 1 has the geometry and the open items.
 workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l1-l31-8b-p512-o512"]
