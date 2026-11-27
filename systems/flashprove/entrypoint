@@ -83,7 +83,7 @@ IM_SRC = "integrations/vllm/integer_model"
 # token stops the loop (RFC-0018 ignore_eos). One process, so the GPU and the 238 GB of pinned host
 # memory (OPERATING.md "Full size") are free again before cp_prove starts. The wall time of the
 # load, of each prefill call and of each request's decode calls goes to `seconds` (RFC-0018 CO-10,
-# proposed): `extend` returns its token ids on the CPU (model.py L231-L232, L309), so a call's wall
+# proposed): `extend` returns its token ids on the CPU (model.py L235-L236, L309), so a call's wall
 # time holds its GPU work. Timing them changes no call and no argument.
 GENERATE_PY = """import json, sys, time
 import integer_model
@@ -105,8 +105,11 @@ with open(out, "x") as f:
         model.free(sequence)
         f.write(json.dumps({"prompt_token_ids": prompt, "reply_token_ids": reply}) + "\\n")
         f.flush()
-with open(seconds, "x") as f:
-    json.dump(timed, f)
+try:  # the replies are written: a timing file that cannot be written costs the parts only
+    with open(seconds, "x") as f:
+        json.dump(timed, f)
+except OSError:
+    pass
 """
 # RFC-0018 AD-7. Position j of a sequence scores token j + 1 (examples/score_reply.py L126-128), so
 # the prompt but its last token is fed first and then, in one call, the prompt's last token and the

@@ -274,6 +274,29 @@ def test_a_failed_setup_is_recorded_and_never_reused(tmp_path: Path) -> None:
     assert e.value.kind is ErrorKind.CONFIG
 
 
+def test_a_record_the_schema_refuses_keeps_the_state_out_of_reach(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A record that fails its schema is a harness defect, found after the commit was paid for:
+    the setup is recorded as failed and no session can load it, and the state is kept beside the
+    refused record."""
+    whole = Runner._setup_doc
+
+    def odd(self: Runner, *args: Any, **kw: Any) -> dict[str, Any]:
+        doc: dict[str, Any] = whole(self, *args, **kw)
+        return doc if kw.get("bare") else doc | {"not_in_the_schema": 1}
+
+    monkeypatch.setattr(Runner, "_setup_doc", odd)
+    made = make(tmp_path)
+    doc = record(made)
+    assert (doc["status"], doc["archive"]) == ("failed", None)
+    assert not (made / ARCHIVE).exists()
+    with tarfile.open(made / "logs/invalid" / ARCHIVE) as tar:
+        assert "state/commitment.txt" in tar.getnames()
+    with pytest.raises(IProofsError):
+        load_setup(made, REGISTRY)
+
+
 def test_restore_refuses_a_state_already_there_and_entries_outside_state(tmp_path: Path) -> None:
     state = tmp_path / "made/state"
     (state / "build").mkdir(parents=True)

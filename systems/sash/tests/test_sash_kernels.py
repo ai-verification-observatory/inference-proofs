@@ -191,6 +191,23 @@ def test_reply_whose_emission_adds_a_kernel_builds_once(
     assert [p["proof_id"] for p in out["proofs"]] == ["req-0", "req-1"]
 
 
+def test_a_control_job_that_builds_is_not_a_setup_defect(
+    adapter: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A control proves other weights or under a flag the setup never emitted for: its build is
+    counted and warned about, and is no entry of `setup_defects`. The reply still proves."""
+    c = commit(adapter)
+    monkeypatch.setenv("IPROOFS_SASH_STUB_NEW", "f00dface")
+    adapter.host("/io/prompts.jsonl").write_text(json.dumps(PROMPT) + "\n")
+    out = run_step(adapter, "prove", commitment_id=c["commitment_id"], model_dir="/models",
+                   prover_files=c["prover_files"], prompts_file="/io/prompts.jsonl",
+                   batch_size=1, batches=1, control=True)  # fmt: skip
+    assert (out["kernels"]["replies_built"], out["kernels"]["setup_defects"]) == (1, [])
+    assert phases(out)["kernels_build"] > 0
+    assert len(out["warnings"]) == 1
+    assert [p["proof_id"] for p in out["proofs"]] == ["req-0"]
+
+
 def test_prove_phases_apart(adapter: ModuleType) -> None:
     out = prove(adapter, commit(adapter), replies=1)
     assert list(phases(out)) == ["ids", "witness", "kernels_emit", "kernels_build", "prove",

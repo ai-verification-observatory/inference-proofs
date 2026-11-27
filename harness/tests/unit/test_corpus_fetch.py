@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from iproofs import workloads
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import Corpus, CorpusText, Normalisation
 from iproofs.provenance import corpus_digest
@@ -101,3 +102,19 @@ def test_corpus_fetch_retries(tmp_path: Path, server: str) -> None:
     Handler.failures = 0
     with pytest.raises(IProofsError, match="failed"):
         http_get(f"{server}/missing.txt")
+
+
+def test_a_level_runs_corpus_fetch_tries_three_times(
+    tmp_path: Path, server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """What a session's prompts and a hosted job's check before the weights use: two failed
+    downloads of a text are tried again, a third ends the fetch."""
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    retry = workloads._corpus_retry
+    Handler.failures = 2
+    assert sorted(ensure_corpus(corpus(server), tmp_path, retry=retry)) == ["a", "b"]
+    Handler.failures = 3
+    with pytest.raises(IProofsError) as e:
+        ensure_corpus(corpus(server), tmp_path / "again", retry=retry)
+    assert e.value.kind is ErrorKind.FETCH
+    Handler.failures = 0

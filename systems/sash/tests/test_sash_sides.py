@@ -65,6 +65,22 @@ def test_prove_reports_no_part_without_every_row(
     assert warning.startswith("prove is not reported by side (RFC-0018 CO-10): req-0: its chunk")
 
 
+def test_rows_of_an_unexpected_form_cost_the_split_only(
+    adapter: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The proof is released before its rows are read: a row that is not an object leaves the
+    reply recorded with its whole phases, and no part."""
+
+    def odd(*_: object) -> tuple[float, float]:
+        raise AttributeError("'str' object has no attribute 'get'")
+
+    monkeypatch.setattr(adapter, "block_seconds", odd)
+    out = prove(adapter, replies=1)
+    assert list(phases(out)) == WHOLE
+    assert [p["proof_id"] for p in out["proofs"]] == ["req-0"]
+    assert len(out["warnings"]) == 1
+
+
 def plan_of(tags: list[str], tmp: Path) -> str:
     (tmp / "plan.txt").write_text("# plan\n" + "".join(f"--x 1 --ser-tag {t}\n" for t in tags))
     return "/io/plan.txt"

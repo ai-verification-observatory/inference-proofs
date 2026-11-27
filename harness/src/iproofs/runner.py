@@ -858,7 +858,8 @@ class Runner:
                 (kept / SETUP_RECORD).write_text(json.dumps(doc, indent=2, default=str))
                 message = f"{SETUP_RECORD} fails its schema: {errors[0]}"
                 job.failure = Failure.build(ErrorKind.INTERNAL, "written", message)
-                (staging / ARCHIVE).unlink(missing_ok=True)
+                if (staging / ARCHIVE).is_file():  # paid work: kept beside the refused record,
+                    (staging / ARCHIVE).rename(kept / ARCHIVE)  # where no session can load it
                 job.setup_archive = None
                 doc = self._setup_doc(job, started_at, total, self._pointer(final / SETUP_RECORD),
                                       bare=True)  # fmt: skip

@@ -9,6 +9,7 @@ import os
 import random
 import shutil
 import stat
+import time
 import unicodedata
 import urllib.error
 import urllib.request
@@ -595,6 +596,28 @@ def ensure_corpus(
     return out
 
 
+CORPUS_FETCH_WAITS_S = (2.0, 8.0)  # RFC-0010 §Retry policy: three attempts
+
+
+def _corpus_retry(op: Callable[[], bytes]) -> bytes:
+    for wait in CORPUS_FETCH_WAITS_S:
+        try:
+            return op()
+        except IProofsError as e:
+            if e.kind is not ErrorKind.FETCH:
+                raise
+            time.sleep(wait)
+    return op()
+
+
+def fetch_corpus(root: Path, *, cache: Path | None = None) -> dict[str, Path]:
+    """Every text of `workloads/prompts/corpus.yaml` in the verified cache, fetched if absent:
+    what a hosted job runs before it fetches any weights."""
+    corpus = load(root / CORPUS_FILE, SchemaRegistry.from_tree(root / "schema"))
+    assert isinstance(corpus, Corpus)
+    return ensure_corpus(corpus, cache or default_cache(), retry=_corpus_retry)
+
+
 def normalised(data: bytes) -> str:
     """RFC-0003 normalisation: strip a BOM, LF newlines, Unicode NFC."""
     text = data.decode("utf-8").removeprefix("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
@@ -613,7 +636,8 @@ def pinned_corpus(
     assert isinstance(corpus, Corpus)
     if listed_digest(corpus) != digest:
         return None  # another corpus: nothing to fetch
-    files = ensure_corpus(corpus, cache or default_cache(), get=get)
+    files = ensure_corpus(corpus, cache or default_cache(), get=get,
+                          retry=_corpus_retry if get is None else lambda op: op())  # fmt: skip
     return [normalised(files[k].read_bytes()) for k in sorted(files, key=str.encode)]
 
 

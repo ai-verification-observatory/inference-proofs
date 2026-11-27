@@ -540,7 +540,7 @@ def test_the_controls_step_runs_one_part_in_this_container() -> None:
 def test_every_job_uploads_through_the_bucket_api(tmp_path: Path, profile: str) -> None:
     """With HF_TOKEN and IPROOFS_UPLOAD_BUCKET, a production-serving job uploads as a prover
     job does: `hf buckets sync` twice (the records first), then the check file by file; the
-    mounted bucket, still there for --prompts-from, gets no copy."""
+    mounted bucket, still there for --prompts-from, gets a copy only when that check fails."""
     repo, head, env = stubbed(tmp_path)
     bucket = tmp_path / "bucket"
     bucket.mkdir()
@@ -556,8 +556,11 @@ def test_every_job_uploads_through_the_bucket_api(tmp_path: Path, profile: str) 
     assert "--exclude */io/*" in syncs[0]
     assert [c for c in calls(tmp_path) if " hf buckets ls ns/b --recursive" in c]
     assert "upload: out/ through the bucket API" in log
-    assert "upload: out/ to the mounted bucket" not in log
-    assert not (bucket / "runs").exists() or not any((bucket / "runs").iterdir())
+    # the stub bucket lists nothing back, so the check fails: the mount gets an unchecked copy,
+    # with no upload.done, which no later job takes as a whole upload
+    [folder] = (bucket / "runs").iterdir()
+    assert (folder / "job.log").is_file()
+    assert not (folder / "upload.done").exists()
     assert "hf_secret_x" not in log
 
 

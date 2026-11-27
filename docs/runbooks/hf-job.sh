@@ -334,18 +334,22 @@ upload_api() {  # STATUS FOLDER: through the bucket API, which returns once the 
     fi
   else
     log "upload: FAILED or incomplete (see the check above); exit $status"
+    ok=0
   fi
   hfcli buckets cp "$OUT/job.log" "$dest/job.log" --quiet || true
+  [ "$ok" = 1 ]
 }
 
 upload() {
   local status=$?
   prune
-  local folder
+  local folder unchecked=0
   folder=${UPLOAD_FOLDER:-"runs/$(date -u +%Y%m%dT%H%M%SZ)-${IPROOFS_LABEL:-$MODE}"}
-  if [ -n "${HF_TOKEN:-}" ] && [ -n "${IPROOFS_UPLOAD_BUCKET:-}" ]; then
-    upload_api "$status" "$folder"
-    return
+  if [ -n "${HF_TOKEN:-}" ] && [ -n "${IPROOFS_UPLOAD_BUCKET:-}" ] && [ "${API_DEAD:-0}" != 1 ]; then
+    upload_api "$status" "$folder" && return
+    [ -n "${IPROOFS_UPLOAD_DIR:-}" ] || return
+    log "upload: the bucket API did not take everything; the mount is tried too, unchecked"
+    unchecked=1
   fi
   if [ -n "${IPROOFS_UPLOAD_DIR:-}" ]; then
     log "upload: WARNING the bucket mount sends large files in the background and may drop them when the job ends (SASH r1, 2026-11-08); set HF_TOKEN and IPROOFS_UPLOAD_BUCKET for a checked upload"
@@ -359,9 +363,14 @@ upload() {
     cp "$OUT"/*.json "$OUT/job.log" "$dest/" 2>/dev/null || true
     [ -d "$OUT/controls" ] && cp -R "$OUT/controls" "$dest/"
     if copy_dev "$dest/dev-results"; then
-      # what seed, controls and merge check first: this copy ended, with this many bytes
-      printf 'dev-results bytes %s\n' "$(dev_bytes)" > "$dest/upload.done"
-      log "upload: done ($(cat "$dest/upload.done")); exit $status"
+      if [ "$unchecked" = 1 ]; then
+        # after a failed API upload: no upload.done, so no later job takes this folder as whole
+        log "upload: copied through the mount, with no upload.done (compare it by hand); exit $status"
+      else
+        # what seed, controls and merge check first: this copy ended, with this many bytes
+        printf 'dev-results bytes %s\n' "$(dev_bytes)" > "$dest/upload.done"
+        log "upload: done ($(cat "$dest/upload.done")); exit $status"
+      fi
     else
       log "upload: failed; exit $status"
     fi
@@ -729,6 +738,18 @@ if ! command -v uv >/dev/null; then
   export PATH="$UV_DIR:$PATH"
 fi
 uv --version
+if [ -n "${HF_TOKEN:-}" ] && [ -n "${IPROOFS_UPLOAD_BUCKET:-}" ]; then
+  # what the end of the job relies on, tried now: the CLI installs and this token can write
+  date -u +%Y-%m-%dT%H:%M:%SZ > "$WORK/upload-check.txt"
+  if hfcli buckets cp "$WORK/upload-check.txt" \
+    "hf://buckets/$IPROOFS_UPLOAD_BUCKET/upload-checks/${IPROOFS_LABEL:-$MODE}.txt" --quiet; then
+    log "upload bucket API: writable"
+  else
+    log "upload bucket API: a write FAILED (the CLI, the token or the bucket); stopping before any work"
+    API_DEAD=1  # the exit's upload goes through the mount, with no API retries
+    exit 3
+  fi
+fi
 log "install the harness"
 # the image's pip-interface settings (the vLLM image sets UV_OVERRIDE and UV_INDEX_STRATEGY for
 # its own packages) never reach the harness install, which is the lock file's alone
@@ -1086,6 +1107,16 @@ elif [ -n "${IPROOFS_IMAGE:-}" ]; then
   fi
   image_args=(--image "$IPROOFS_IMAGE")
 fi
+case " $* " in
+  *level=*)  # a level's prompts are drawn from the corpus: have it, checked, before any weights
+    if [ "$MODE" = run ] && ! "$PY" -c 'from pathlib import Path
+from iproofs.workloads import fetch_corpus
+print("corpus:", len(fetch_corpus(Path.cwd())), "texts in the cache, each with its sha256")'; then
+      log "the prompt corpus is not in the cache and could not be fetched; stopping before any weights"
+      exit 3
+    fi
+    ;;
+esac
 failed=0
 FETCHED=" "   # serving records fetched and checked by an earlier step of this job
 for step in "$@"; do
@@ -1191,6 +1222,12 @@ if reference_role(root, sys.argv[1]) == "serve":
       --system "$SYSTEM" --profile "$PROFILE" --hosted --gpu "$GPU" --level "$level_id" \
       --results "$DEV" ${image_args[@]+"${image_args[@]:0:2}"}; then
       log "prepare-perturbed failed; the run goes on and records C3 and P1 not_applicable"
+    fi
+    remaining=$(left)  # the commitment of W' took its time out of the run's
+    if [ "$remaining" -le 600 ]; then
+      log "$remaining s left before the reserve after prepare-perturbed; $workload not started"
+      failed=1
+      break
     fi
   fi
   reps_args=(--repetitions "${reps:-1}")
